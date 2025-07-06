@@ -10,7 +10,7 @@ delete_client:
 	rm -rf ./clients/petstore
 
 test:
-	go test ./... 
+	go test ./... -v
 
 openapi-generator: clean
 	curl https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/$(openapi-generator-cli-version)/openapi-generator-cli-$(openapi-generator-cli-version).jar --output ./clients/openapi-generator-cli.jar

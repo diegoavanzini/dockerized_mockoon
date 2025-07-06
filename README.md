@@ -1,21 +1,17 @@
 # testing with mockoon
 
-## prerequisiti
+## Prerequisites
 
 
 1. install mockoon and mockoon/cli
 2. install Golang
-3. install Docker
+3. install Docker (or equivalent)
 
+Imagine we need to call a “petstore” service to get a list of available pets, but the http APIs are not ready, we only  have the [openAPI interface](https://www.openapis.org/).
 
-Imagine we have to call a petstore service to get a list of available pets but the http APIs are not ready, we have only the openapi interface.
+Using [Mockoon desktop](https://mockoon.com/download/) I can import the [YAML rapresentation](https://editor.swagger.io/) (the [petstore](https://editor.swagger.io/) example is fine for testing purpose) and export the JSON with the mocked service.
 
-
-Using mockoon desktop I can import the yaml rapresentation (the example [petstore](https://editor.swagger.io/) is ok for test purpose) and export the json with the mocked service.
-
-
-I’ll start with a test… in the arrange section we have to start the service mock using mockoon cli.
-
+I’ll start with a test… in the “Arrange” section we need to start the service mock using [mockoon cli](https://mockoon.com/cli/).
 
 ```go
 mockedPetstore, addr, err := NewDockerMockoon().Start("petstore")

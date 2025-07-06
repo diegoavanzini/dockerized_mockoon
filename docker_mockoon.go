@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ory/dockertest/v3"
@@ -12,30 +13,45 @@ import (
 )
 
 type IDockerMockoon interface {
-	TearDown() error
 	Start(serviceToMock string) (IDockerMockoon, *string, error)
+	TearDown() error
+	AddService(service Service) error
+}
+
+func (dm *DockerMockoon) AddService(service Service) error {
+	if _, exists := dm.services[service.Name]; exists {
+		return fmt.Errorf("Service with name '%s' already exists", service.Name)
+	}
+	service.dataPath = fmt.Sprintf("%s/%s", dm.rootDataPath, service.Name)
+	dm.services[service.Name] = service
+	return nil
 }
 
 type DockerMockoon struct {
-	pool     *dockertest.Pool
-	resource *dockertest.Resource
-	services map[string]Service
+	rootDataPath string
+	pool         *dockertest.Pool
+	resource     *dockertest.Resource
+	services     map[string]Service
 }
 
 type Service struct {
+	Name        string
 	ExposedPort int
-	DataPath    string
+	dataPath    string
 }
 
-func NewDockerMockoon() IDockerMockoon {
-	return &DockerMockoon{
-		services: map[string]Service{
-			"petstore": {
-				ExposedPort: 3005,
-				DataPath:    "c:/GoCode/src/github.com/diegoavanzini/dockerized_mockoon/data/petstore",
-			},
-		},
+func NewDockerMockoon() (IDockerMockoon, error) {
+	absPath, err := os.Getwd()
+	if err != nil {
+		return nil, err
 	}
+	absPath = strings.ReplaceAll(absPath, "\\", "/")
+	// Ensure the path ends with /data
+	absPath = fmt.Sprintf("%s/data", absPath)
+	return &DockerMockoon{
+		rootDataPath: absPath,
+		services:     map[string]Service{},
+	}, nil
 }
 
 func (dm *DockerMockoon) Start(serviceNameToMock string) (IDockerMockoon, *string, error) {
@@ -73,7 +89,7 @@ func (dm *DockerMockoon) Start(serviceNameToMock string) (IDockerMockoon, *strin
 		},
 		ExposedPorts: []string{fmt.Sprintf("%d/tcp", serviceToMock.ExposedPort)},
 		Mounts: []string{
-			fmt.Sprintf("%s:/data", serviceToMock.DataPath),
+			fmt.Sprintf("%s:/data", serviceToMock.dataPath),
 		},
 	}
 
