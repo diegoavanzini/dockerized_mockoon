@@ -17,7 +17,7 @@ func TestPetStoreCall_WhenMockoonSetted_ShouldReturnAResponse(t *testing.T) {
 	}
 	serviceMockFactory.AddService(Service{
 		Name:        "petstore",
-		ExposedPort: 3005,
+		ExposedPort: 3006,
 	})
 	mockedPetstore, addr, err := serviceMockFactory.Start("petstore")
 	if err != nil {

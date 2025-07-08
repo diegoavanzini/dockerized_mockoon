@@ -18,6 +18,33 @@ type IDockerMockoon interface {
 	AddService(service Service) error
 }
 
+func (dm *DockerMockoon) startDocker() (*dockertest.Pool, error) {
+	var pool *dockertest.Pool
+	var err error
+	if dockerHost := os.Getenv("DOCKER_HOST"); dockerHost != "" {
+		pool, err = dockertest.NewPool(dockerHost)
+	} else {
+		// Try npipe first (Windows Docker Desktop)
+		pool, err = dockertest.NewPool("npipe:////./pipe/docker_engine")
+		if err != nil {
+			// Fallback to default
+			pool, err = dockertest.NewPool("")
+		}
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to start Dockertest: %+v", err)
+	}
+
+	// Try to connect to docker
+	err = pool.Client.Ping()
+	if err != nil {
+		return nil, fmt.Errorf("Could not connect to docker: %s", err)
+	}
+
+	return pool, nil
+}
+
 func (dm *DockerMockoon) AddService(service Service) error {
 	if _, exists := dm.services[service.Name]; exists {
 		return fmt.Errorf("Service with name '%s' already exists", service.Name)
@@ -55,36 +82,17 @@ func NewDockerMockoon() (IDockerMockoon, error) {
 }
 
 func (dm *DockerMockoon) Start(serviceNameToMock string) (IDockerMockoon, *string, error) {
-	// Try to use Docker endpoint from environment or default to npipe for Windows
-	var pool *dockertest.Pool
-	var err error
-
 	serviceToMock := dm.services[serviceNameToMock]
-	if dockerHost := os.Getenv("DOCKER_HOST"); dockerHost != "" {
-		pool, err = dockertest.NewPool(dockerHost)
-	} else {
-		// Try npipe first (Windows Docker Desktop)
-		pool, err = dockertest.NewPool("npipe:////./pipe/docker_engine")
-		if err != nil {
-			// Fallback to default
-			pool, err = dockertest.NewPool("")
-		}
-	}
-
+	// Try to use Docker endpoint from environment or default to npipe for Windows
+	pool, err := dm.startDocker()
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to start Dockertest: %+v", err)
-	}
-
-	// Try to connect to docker
-	err = pool.Client.Ping()
-	if err != nil {
-		return nil, nil, fmt.Errorf("Could not connect to docker: %s", err)
+		return nil, nil, err
 	}
 	opt := &dockertest.RunOptions{
 		Repository: "mockoon/cli",
 		Tag:        "latest",
 		Cmd: []string{
-			"-d", "/data/" + serviceNameToMock + ".json",
+			"-d", "/data/" + serviceNameToMock + ".yaml",
 			"-p", fmt.Sprintf("%d", serviceToMock.ExposedPort),
 		},
 		ExposedPorts: []string{fmt.Sprintf("%d/tcp", serviceToMock.ExposedPort)},
